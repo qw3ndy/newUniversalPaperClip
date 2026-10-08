@@ -1,0 +1,19 @@
+{
+  "name": "trombones-universels",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Une version moderne de Universal Paperclips, avec une usine à construire façon jeu d'automatisation.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}
