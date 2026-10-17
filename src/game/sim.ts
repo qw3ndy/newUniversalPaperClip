@@ -153,8 +153,11 @@ function stepFeeder(w: World, e: Entity, dt: number): void {
       const q = Math.min(Math.floor(feederRate(s) * EMIT_INTERVAL), Math.floor(s.wire));
       s.wire -= q;
       e.out = { kind: 'wire', qty: q, pos: 0 };
-      e.timer = EMIT_INTERVAL;
+      // On reporte le retard accumulé (au plus un intervalle) : sinon l'arrondi au tick
+      // fait livrer 19,2 pouces/s au lieu de 20, sans jamais créer de rafale.
+      e.timer = Math.max(e.timer, -EMIT_INTERVAL) + EMIT_INTERVAL;
       e.pulse = s.time;
+      w.recordMade(e, q);
     } else {
       e.status = 'noWire';
       return;
@@ -180,6 +183,7 @@ function stepConverter(w: World, e: Entity, dt: number, outKind: ItemKind): void
       e.outBuf += p;
       e.status = 'ok';
       e.pulse = s.time;
+      w.recordMade(e, p);
     } else e.status = e.inBuf <= 0 ? 'noInput' : 'blocked';
   } else e.status = 'blocked';
   emit(w, e, outKind, dt);
@@ -197,6 +201,7 @@ function stepMine(w: World, e: Entity, dt: number): void {
     if (s.earthMatter < 1) s.earthMatter = 0;
     e.outBuf += p;
     w.acc.matter += p;
+    w.recordMade(e, p);
     e.status = 'ok';
     e.pulse = s.time;
   } else e.status = 'blocked';
@@ -260,4 +265,5 @@ export function stepFactory(w: World, dt: number): void {
         break;
     }
   }
+  w.trackRates(dt);
 }

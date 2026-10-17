@@ -174,7 +174,7 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: 'mega',
     title: 'Méga-plieuses',
-    desc: 'Débloque la méga-plieuse : 2×2, cinquante fois plus rapide.',
+    desc: 'Débloque la méga-plieuse : 2×2, elle vaut vingt plieuses.',
     cost: { ops: 8000 },
     req: (s) => p1(s) && count(s, 'clipper') >= (s.rules?.megaReq ?? 20),
     effect: (w) => (w.s.flags.mega = true),

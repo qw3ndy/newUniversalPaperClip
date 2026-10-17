@@ -2,7 +2,8 @@ import { BELT_BASE_SPEED, BUILDINGS } from './constants';
 import type { BuildingType, Cost, Entity, GameState } from './types';
 
 export const clipperRate = (s: GameState) => 1 * s.mods.clipperBoost;
-export const megaRate = (s: GameState) => 50 * s.mods.megaBoost;
+/** Une méga-plieuse vaut 20 plieuses, améliorations comprises, et jamais moins de 50/s de base. */
+export const megaRate = (s: GameState) => Math.max(50, 20 * clipperRate(s)) * s.mods.megaBoost;
 export const feederRate = (s: GameState) => 20 * s.mods.feederMult;
 /** Débit d'une foreuse couvrant entièrement un gisement (4 tuiles). */
 export const mineRate = (s: GameState) => 400 * s.mods.nano;

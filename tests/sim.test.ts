@@ -4,6 +4,7 @@ import { buyWire, changePrice, makeClipByHand } from '../src/game/economy';
 import { Game } from '../src/game/game';
 import { buyProject, PROJECTS } from '../src/game/projects';
 import { hydrate, serialize } from '../src/game/save';
+import { megaRate } from '../src/game/rules';
 import { newGame } from '../src/game/state';
 
 function run(g: Game, seconds: number) {
@@ -77,6 +78,73 @@ describe('usine', () => {
     run(g, 40);
     // 6 plieuses à 1/s pendant ~35 s utiles.
     expect(g.s.clips).toBeGreaterThan(150);
+  });
+
+  it('une machine bien alimentée tient son débit nominal', () => {
+    const rate = (setup: (g: Game) => number) => {
+      const g = new Game(newGame(5));
+      g.s.funds = 1e9;
+      g.s.wire = 1e9;
+      g.world.remove(g.world.at(HQ_X - 2, HQ_Y)!);
+      const nominal = setup(g);
+      run(g, 30);
+      const c0 = g.s.clips;
+      run(g, 60);
+      return (g.s.clips - c0) / 60 / nominal;
+    };
+    // Plieuse boostée ×2,5 collée à son distributeur.
+    expect(
+      rate((g) => {
+        g.s.mods.clipperBoost = 2.5;
+        g.world.place('feeder', HQ_X - 2, HQ_Y, 1);
+        g.world.place('clipper', HQ_X - 1, HQ_Y, 1);
+        return 2.5;
+      }),
+    ).toBeGreaterThan(0.99);
+    // Méga-plieuse avec un distributeur amélioré (60 pouces/s pour 50 consommés).
+    expect(
+      rate((g) => {
+        g.s.flags.mega = true;
+        g.s.mods.feederMult = 3;
+        g.world.place('feeder', HQ_X - 3, HQ_Y, 1);
+        g.world.place('megaclipper', HQ_X - 2, HQ_Y, 1);
+        return megaRate(g.s);
+      }),
+    ).toBeGreaterThan(0.99);
+  });
+
+  it('le débit réel de chaque machine est mesuré pour l’affichage', () => {
+    const g = new Game(newGame(5));
+    g.s.funds = 100;
+    const c = g.world.place('clipper', HQ_X - 1, HQ_Y, 1)!;
+    run(g, 10);
+    expect(g.world.realRate.get(c.id)).toBeCloseTo(1, 1);
+  });
+
+  it('un distributeur livre exactement son débit annoncé', () => {
+    const g = new Game(newGame(2));
+    g.s.funds = 100;
+    g.world.remove(g.world.at(HQ_X - 2, HQ_Y)!);
+    const f = g.world.place('feeder', HQ_X - 1, HQ_Y, 1)!; // vide son fil directement dans le Siège
+    run(g, 5);
+    let delivered = 0;
+    const orig = g.world.recordMade.bind(g.world);
+    g.world.recordMade = (e, q) => {
+      if (e === f) delivered += q;
+      orig(e, q);
+    };
+    run(g, 60);
+    expect(delivered / 60).toBeGreaterThan(19.8);
+    expect(delivered / 60).toBeLessThanOrEqual(20.2);
+  });
+
+  it('la méga-plieuse vaut 20 plieuses, et jamais moins de 50/s', () => {
+    const s = newGame(1);
+    expect(megaRate(s)).toBe(50);
+    s.mods.clipperBoost = 7.5;
+    expect(megaRate(s)).toBe(150);
+    s.mods.megaBoost = 2.75;
+    expect(megaRate(s)).toBeCloseTo(412.5);
   });
 
   it('suppression = remboursement exact', () => {

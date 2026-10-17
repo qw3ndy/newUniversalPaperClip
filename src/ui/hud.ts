@@ -375,6 +375,13 @@ export class Hud {
       this.row(fac, 'Plieuses', () => `${s().counts.clipper ?? 0} × ${fmt(clipperRate(s()), 2)}/s`, 'clipper');
       if (this.s.flags.mega) this.row(fac, 'Méga-plieuses', () => `${s().counts.megaclipper ?? 0} × ${fmt(megaRate(s()), 1)}/s`, 'megaclipper');
       this.row(fac, 'Distributeurs', () => `${s().counts.feeder ?? 0} × ${fmt(feederRate(s()))}/s`, 'feeder');
+      const wireNeed = () => (s().counts.clipper ?? 0) * clipperRate(s()) + (s().counts.megaclipper ?? 0) * megaRate(s());
+      const wireSupply = () => (s().counts.feeder ?? 0) * feederRate(s());
+      const bal = this.row(fac, 'Fil : besoin / distribué', () => `${fmt(wireNeed(), 1)} / ${fmt(wireSupply(), 1)} par s`, 'wire');
+      this.cls(bal, 'short', () => wireNeed() > wireSupply());
+      const hint = el('p', 'muted small', 'Les distributeurs ne suivent pas : vos plieuses tournent au ralenti. Ajoutez des distributeurs ou améliorez-les.');
+      fac.appendChild(hint);
+      this.cls(hint, 'hidden', () => wireNeed() <= wireSupply());
     } else if (this.s.phase === 2 || this.app.view === 'factory') {
       const pl = this.card(L, 'Planète', 'planet');
       this.row(pl, 'Matière restante', () => fmt(s().earthMatter) + ' g', undefined, 'strong');
@@ -399,6 +406,21 @@ export class Hud {
       this.row(fac, 'Tréfileries', () => `${s().counts.wiremill ?? 0} · ${fmt(millRate(s()))}/s`, 'wiremill');
       this.row(fac, 'Usines', () => `${s().counts.clipfactory ?? 0} · ${fmt(factoryRate(s()))}/s`, 'clipfactory');
       this.row(fac, 'Fermes solaires', () => `${s().counts.solar ?? 0} · ${fmt(solarOutput(s()))} MW`, 'solar');
+      const chain = () => {
+        const st = s();
+        let mined = 0;
+        for (const e of st.entities) if (e.type === 'mine') mined += machineRate(st, e);
+        const steps: [string, number][] = [
+          ['Foreuses', mined],
+          ['Tréfileries', (st.counts.wiremill ?? 0) * millRate(st)],
+          ['Usines', (st.counts.clipfactory ?? 0) * factoryRate(st)],
+        ];
+        return steps.reduce((a, b) => (b[1] < a[1] ? b : a));
+      };
+      this.row(fac, 'Goulot d’étranglement', () => {
+        const [name, v] = chain();
+        return `${name} (${fmt(v)}/s)`;
+      });
     } else {
       this.buildSpaceLeft(L);
     }
@@ -616,8 +638,19 @@ export class Hud {
     const rate = machineRate(s, e);
     if (rate > 0) {
       const unit = e.type === 'mine' ? 'g de matière' : e.type === 'wiremill' || e.type === 'feeder' ? 'pouces de fil' : 'trombones';
-      lines.push(`<div>Débit : <b>${fmt(rate, 2)}</b> ${unit}/s</div>`);
+      lines.push(`<div>Débit nominal : <b>${fmt(rate, 2)}</b> ${unit}/s</div>`);
+      const real = this.w.realRate.get(e.id);
+      if (real === undefined) lines.push('<div class="muted">Débit réel : mesure en cours…</div>');
+      else {
+        const ratio = real / rate;
+        lines.push(`<div class="tt-real ${ratio < 0.9 ? 'low' : ''}">Débit réel : <b>${fmt(real, 2)}</b>/s (${Math.round(ratio * 100)} %)</div>`);
+        if (ratio < 0.9) lines.push(`<div class="tt-why">${this.shortfallReason(e)}</div>`);
+      }
     }
+    const need = this.inputNeed(e);
+    if (need) lines.push(`<div>Consomme jusqu’à ${need}</div>`);
+    if (e.type === 'megaclipper' || e.type === 'clipfactory')
+      lines.push(`<div>≈ ${fmt(rate / clipperRate(s), 1)} plieuses actuelles · lots d’environ ${fmt(Math.max(1, rate * 0.4), 0)} trombones</div>`);
     if (e.type === 'clipper' || e.type === 'megaclipper' || e.type === 'clipfactory' || e.type === 'wiremill') {
       const cap = bufferCap(rate);
       lines.push(`<div>Entrée : ${fmt(e.inBuf)} / ${fmt(cap)} · Sortie : ${fmt(e.outBuf)}</div>`);
@@ -631,6 +664,30 @@ export class Hud {
     return head + lines.join('');
   }
 
+  /** Ce qu'une machine consomme à plein régime, en texte. */
+  private inputNeed(e: Pick<Entity, 'type' | 'deposit'>): string | null {
+    const r = machineRate(this.s, e as Entity);
+    if (e.type === 'clipper' || e.type === 'megaclipper' || e.type === 'clipfactory') return `${fmt(r, 2)} pouces de fil/s`;
+    if (e.type === 'wiremill') return `${fmt(r, 2)} g de matière/s`;
+    return null;
+  }
+
+  /** Pourquoi une machine tourne sous son débit nominal. */
+  private shortfallReason(e: Entity): string {
+    const s = this.s;
+    if (e.type === 'feeder')
+      return s.wire < 1 ? 'Le stock de fil du Siège est vide : achetez des bobines.' : 'La ligne devant le distributeur est pleine : les machines en aval ne consomment pas tout.';
+    if (e.type === 'mine') {
+      if (s.earthMatter <= 0) return 'La Terre est épuisée.';
+      if (this.w.powerEff < 0.999) return 'Énergie insuffisante : ajoutez des fermes solaires.';
+      return 'Sortie bloquée : la matière n’est pas évacuée assez vite.';
+    }
+    if (BUILDINGS[e.type].power > 0 && this.w.powerEff < 0.999) return 'Énergie insuffisante : ajoutez des fermes solaires.';
+    if (e.status === 'blocked') return 'Sortie bloquée : le tapis de sortie est saturé ou ne mène nulle part.';
+    if (e.type === 'wiremill') return 'Pas assez de matière : ajoutez des foreuses ou rapprochez-les.';
+    return 'Pas assez de fil : ajoutez des distributeurs, ou améliorez-les avec les projets « Bobinage rapide » et « Distributeurs industriels ».';
+  }
+
   private slotInfo(t: BuildingType): string {
     const s = this.s;
     const def = BUILDINGS[t];
@@ -639,6 +696,9 @@ export class Hud {
     const fake = { type: t, deposit: 4 } as Entity;
     const r = machineRate(s, fake);
     if (r > 0) lines.push(`<div>Débit : <b>${fmt(r, 2)}</b>/s</div>`);
+    const need = this.inputNeed(fake);
+    if (need) lines.push(`<div>Consomme jusqu’à ${need}</div>`);
+    if (t === 'feeder') lines.push(`<div>Fournit jusqu’à ${fmt(r, 2)} pouces de fil/s</div>`);
     if (def.power > 0) lines.push(`<div>Énergie : ${fmt(powerUse(s, t))} MW</div>`);
     if (t === 'solar') lines.push(`<div>Produit ${fmt(solarOutput(s))} MW</div>`);
     lines.push(`<div class="tt-cost ${canAfford(s, cost) ? '' : 'short'}">Coût : ${costText(cost)}</div>`);
