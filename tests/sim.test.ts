@@ -79,6 +79,47 @@ describe('usine', () => {
     expect(g.s.clips).toBeGreaterThan(150);
   });
 
+  it('une machine bien alimentée tient son débit nominal', () => {
+    const rate = (setup: (g: Game) => number) => {
+      const g = new Game(newGame(5));
+      g.s.funds = 1e9;
+      g.s.wire = 1e9;
+      g.world.remove(g.world.at(HQ_X - 2, HQ_Y)!);
+      const nominal = setup(g);
+      run(g, 30);
+      const c0 = g.s.clips;
+      run(g, 60);
+      return (g.s.clips - c0) / 60 / nominal;
+    };
+    // Plieuse boostée ×2,5 collée à son distributeur.
+    expect(
+      rate((g) => {
+        g.s.mods.clipperBoost = 2.5;
+        g.world.place('feeder', HQ_X - 2, HQ_Y, 1);
+        g.world.place('clipper', HQ_X - 1, HQ_Y, 1);
+        return 2.5;
+      }),
+    ).toBeGreaterThan(0.99);
+    // Méga-plieuse avec un distributeur amélioré (60 pouces/s pour 50 consommés).
+    expect(
+      rate((g) => {
+        g.s.flags.mega = true;
+        g.s.mods.feederMult = 3;
+        g.world.place('feeder', HQ_X - 3, HQ_Y, 1);
+        g.world.place('megaclipper', HQ_X - 2, HQ_Y, 1);
+        return 50;
+      }),
+    ).toBeGreaterThan(0.99);
+  });
+
+  it('le débit réel de chaque machine est mesuré pour l’affichage', () => {
+    const g = new Game(newGame(5));
+    g.s.funds = 100;
+    const c = g.world.place('clipper', HQ_X - 1, HQ_Y, 1)!;
+    run(g, 10);
+    expect(g.world.realRate.get(c.id)).toBeCloseTo(1, 1);
+  });
+
   it('suppression = remboursement exact', () => {
     const g = new Game(newGame(5));
     g.s.funds = 50;

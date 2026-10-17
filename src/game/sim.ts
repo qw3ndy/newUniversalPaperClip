@@ -155,6 +155,7 @@ function stepFeeder(w: World, e: Entity, dt: number): void {
       e.out = { kind: 'wire', qty: q, pos: 0 };
       e.timer = EMIT_INTERVAL;
       e.pulse = s.time;
+      w.recordMade(e, q);
     } else {
       e.status = 'noWire';
       return;
@@ -180,6 +181,7 @@ function stepConverter(w: World, e: Entity, dt: number, outKind: ItemKind): void
       e.outBuf += p;
       e.status = 'ok';
       e.pulse = s.time;
+      w.recordMade(e, p);
     } else e.status = e.inBuf <= 0 ? 'noInput' : 'blocked';
   } else e.status = 'blocked';
   emit(w, e, outKind, dt);
@@ -197,6 +199,7 @@ function stepMine(w: World, e: Entity, dt: number): void {
     if (s.earthMatter < 1) s.earthMatter = 0;
     e.outBuf += p;
     w.acc.matter += p;
+    w.recordMade(e, p);
     e.status = 'ok';
     e.pulse = s.time;
   } else e.status = 'blocked';
@@ -260,4 +263,5 @@ export function stepFactory(w: World, dt: number): void {
         break;
     }
   }
+  w.trackRates(dt);
 }

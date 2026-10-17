@@ -60,6 +60,30 @@ export class World {
   notices: Notice[] = [];
   /** Accumulateurs pour les statistiques par seconde. */
   acc = { clips: 0, sales: 0, revenue: 0, matter: 0, hqGain: 0, t: 0 };
+  /**
+   * Production réelle de chaque machine (unités / s), mesurée pour l'affichage.
+   * Vit à côté de l'état de jeu : jamais sauvegardée, sans effet sur la simulation.
+   */
+  realRate = new Map<number, number>();
+  private made = new Map<number, number>();
+  private madeT = 0;
+
+  recordMade(e: Entity, qty: number): void {
+    this.made.set(e.id, (this.made.get(e.id) ?? 0) + qty);
+  }
+
+  trackRates(dt: number): void {
+    this.madeT += dt;
+    if (this.madeT < 2) return;
+    for (const e of this.s.entities) {
+      if (e.type === 'belt' || e.type === 'splitter' || e.type === 'hq') continue;
+      const r = (this.made.get(e.id) ?? 0) / this.madeT;
+      const prev = this.realRate.get(e.id);
+      this.realRate.set(e.id, prev === undefined ? r : prev + (r - prev) * 0.5);
+    }
+    this.made.clear();
+    this.madeT = 0;
+  }
   /** Incrémenté à chaque changement de la grille (pour les caches du rendu). */
   layoutVersion = 0;
 
