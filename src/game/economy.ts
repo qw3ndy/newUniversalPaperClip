@@ -80,7 +80,7 @@ function stepBusiness(w: World, dt: number): void {
     }
   }
   // Prix du fil : une base qui dérive lentement à la baisse, plus une oscillation.
-  if (Math.random() < 0.15 * dt && s.wireBasePrice > 15) s.wireBasePrice -= s.wireBasePrice / 1000;
+  if (Math.random() < 0.15 * dt && s.wireBasePrice > (s.rules?.wireFloor ?? 15)) s.wireBasePrice -= s.wireBasePrice / 1000;
   s.wirePrice = Math.max(1, Math.round(s.wireBasePrice + 6 * Math.sin(s.time * 0.21)));
   if (s.wireBuyer && s.wireBuyerOn && s.wire < 1) buyWire(w);
 
@@ -110,7 +110,7 @@ function stepComputing(w: World, dt: number): void {
   if (!s.computing) {
     if (s.clips >= COMPUTING_AT) {
       s.computing = true;
-      s.trust = 2;
+      s.trust = 2 + (s.rules?.startTrust ?? 0);
       s.processors = 1;
       s.memory = 1;
       s.nextTrustAt = 3000;

@@ -75,6 +75,20 @@ export interface Mods {
   powerMult: number;
   solarMult: number;
   spoolMult: number;
+  /** Bonus d'héritage (scénarios uniquement). */
+  creativityMult?: number;
+}
+
+/** Règles modifiées par un scénario. Absentes en partie classique. */
+export interface ScenarioRules {
+  /** Zone constructible fixe en phase 1. */
+  area?: { w: number; h: number };
+  noExpand?: boolean;
+  megaReq?: number;
+  wireFloor?: number;
+  marketCycle?: boolean;
+  polarNight?: boolean;
+  startTrust?: number;
 }
 
 export interface SpaceAlloc {
@@ -159,4 +173,10 @@ export interface GameState {
 
   stats: Stats;
   log: string[];
+
+  /** Identifiant du scénario ; absent = partie classique. */
+  scenario?: string;
+  rules?: ScenarioRules;
+  /** Niveaux d'héritage appliqués au début de cette partie. */
+  perks?: Record<string, number>;
 }

@@ -1284,3 +1284,203 @@ kbd {
     font-size: 9.5px;
   }
 }
+
+/* ——— Scénarios ——— */
+.scenario-chip {
+  background: rgba(124, 199, 255, 0.1);
+  color: var(--ops);
+  border-color: rgba(124, 199, 255, 0.3);
+  font-variant-numeric: tabular-nums;
+}
+
+.row.crash .val {
+  color: var(--bad);
+}
+
+.row.boom .val {
+  color: var(--good);
+}
+
+.stats-grid .rec {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ——— Accueil ——— */
+.dialog.home {
+  width: min(980px, 100%);
+}
+
+.dialog.home .dlg-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dialog.home .dlg-head .logo {
+  width: 26px;
+  height: 26px;
+  color: var(--gold);
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.home-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-card h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.home-card h3 .ico {
+  color: var(--gold);
+}
+
+.home-card p {
+  font-size: 12.5px;
+  color: #c3cad8;
+}
+
+.home-sum {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--gold);
+}
+
+.home-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn.armed {
+  background: rgba(255, 107, 107, 0.18);
+}
+
+.home-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 207, 92, 0.12), rgba(255, 207, 92, 0.02));
+  border: 1px solid rgba(255, 207, 92, 0.3);
+}
+
+.home-current span {
+  flex: 1 1 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  order: 3;
+}
+
+.home-current b {
+  flex: 1;
+}
+
+.scen-list,
+.perk-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scen,
+.perk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.scen > .ico,
+.perk > .ico {
+  width: 22px;
+  height: 22px;
+  color: var(--ops);
+}
+
+.scen-t,
+.perk-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.scen-t span,
+.perk-t span {
+  color: #b9c1d0;
+  line-height: 1.4;
+}
+
+.scen-t small {
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.legacy .frag {
+  margin-left: auto;
+  color: var(--creat);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.perk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.perk > .ico {
+  color: var(--creat);
+}
+
+.dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dots i.on {
+  background: var(--creat);
+}
+
+@media (max-width: 760px) {
+  .home-grid,
+  .perk-grid {
+    grid-template-columns: 1fr;
+  }
+}

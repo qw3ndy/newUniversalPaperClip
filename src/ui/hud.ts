@@ -19,6 +19,8 @@ import {
   mineRate,
   opsRate,
   powerUse,
+  daylight,
+  marketState,
   salesRate,
   solarOutput,
   spoolSize,
@@ -32,7 +34,12 @@ import type { BuildingType, Cost, Entity, GameState, MachineStatus } from '../ga
 import type { World } from '../game/world';
 import { svgIcon, type IconName } from '../render/icons';
 import type { Camera } from '../render/camera';
+import type { Legacy } from '../game/legacy';
+import { fragmentsFor } from '../game/legacy';
+import type { Slot } from '../game/save';
+import { scenarioName } from '../game/scenarios';
 import type { Input } from './input';
+import { fillHome } from './home';
 import { currentObjective } from './objectives';
 
 export interface App {
@@ -45,7 +52,18 @@ export interface App {
   exportSave(): string;
   importSave(txt: string): boolean;
   resetGame(): void;
+  legacy: Legacy;
+  setPaused(p: boolean): void;
+  slot(): Slot;
+  peek(slot: Slot): GameState | null;
+  continueSlot(slot: Slot): void;
+  startClassic(): void;
+  startScenario(id: string): void;
+  buyPerk(id: string): boolean;
+  payLegacy(): number;
 }
+
+export type ModalName = 'help' | 'menu' | 'end' | 'home';
 
 const STATUS_TEXT: Record<MachineStatus, [string, string]> = {
   ok: ['En marche', 'good'],
@@ -95,7 +113,7 @@ export class Hud {
   private logKey = '';
   private hotbarTypes: BuildingType[] = [];
   private hoverSlot: BuildingType | null = null;
-  private openModal: 'help' | 'menu' | 'end' | null = null;
+  private openModal: ModalName | null = null;
   private lastPhase = 0;
 
   private readonly root = document.getElementById('app')!;
@@ -111,7 +129,7 @@ export class Hud {
 
   constructor(private app: App) {
     this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal && this.openModal !== 'end') this.toggleModal(null);
+      if (e.target === this.modal && this.openModal !== 'end' && this.openModal !== 'home') this.toggleModal(null);
     });
   }
 
@@ -218,6 +236,7 @@ export class Hud {
       !!s.flags.compute,
       this.app.view,
       s.ended,
+      s.scenario ?? '',
     ].join('|');
   }
 
@@ -251,6 +270,12 @@ export class Hud {
     const chip = el('span', 'chip phase-chip');
     right.appendChild(chip);
     this.text(chip, () => `Phase ${s().phase} · ${phaseNames[s().phase]}`);
+    const scen = scenarioName(this.s);
+    if (scen) {
+      const sc = el('span', 'chip scenario-chip');
+      right.appendChild(sc);
+      this.text(sc, () => `${scen} · ${duration(s().time)}`);
+    }
     if (this.s.phase === 3) {
       const tabs = el('div', 'tabs');
       right.appendChild(tabs);
@@ -274,7 +299,10 @@ export class Hud {
     parent.appendChild(box);
     const obj = () => currentObjective(this.s);
     this.text(box.querySelector('.obj-t'), () => obj()?.title ?? 'Tout est trombone.');
-    this.text(box.querySelector('.obj-h'), () => obj()?.hint ?? '');
+    this.text(box.querySelector('.obj-h'), () => {
+      const h = obj()?.hint;
+      return typeof h === 'function' ? h(this.s) : (h ?? '');
+    });
     this.text(box.querySelector('.obj-p'), () => obj()?.progress?.(this.s) ?? '');
     this.cls(box, 'hidden', () => !obj());
   }
@@ -308,6 +336,14 @@ export class Hud {
       this.text(pv, () => money(s().margin));
       this.btn(ctrl, 'step', svgIcon('plus'), () => changePrice(w(), 0.01)).title = 'Augmenter le prix';
       this.row(biz, 'Demande publique', () => fmt(s().demand * 10, 0) + ' %');
+      if (this.s.rules?.marketCycle) {
+        const mr = this.row(biz, 'Marché', () => {
+          const m = marketState(s());
+          return `${m.label} · ${Math.ceil(m.next)} s`;
+        }, 'funds');
+        this.cls(mr, 'crash', () => marketState(s()).factor < 1);
+        this.cls(mr, 'boom', () => marketState(s()).factor > 1);
+      }
       this.row(biz, 'Ventes', () => `${fmt(Math.min(salesRate(s()), Math.max(s().stats.salesRate, 0)), 1)} /s · ${money(s().stats.revenueRate)}/s`);
       const mk = el('div', 'row');
       biz.appendChild(mk);
@@ -352,6 +388,7 @@ export class Hud {
       const en = this.card(L, 'Énergie', 'ops', 'energy');
       this.row(en, 'Production', () => fmt(s().powerProd) + ' MW');
       this.row(en, 'Consommation', () => fmt(s().powerUse) + ' MW');
+      if (this.s.rules?.polarNight) this.row(en, 'Ensoleillement', () => pct(daylight(s()), 0), 'solar');
       this.meter(en, 'power', () => (s().powerUse > 0 ? Math.min(1, s().powerProd / s().powerUse) : 1), () =>
         s().powerUse > 0 ? 'Efficacité ' + pct(Math.min(1, s().powerProd / s().powerUse), 0) : 'Aucune machine',
       );
@@ -682,22 +719,35 @@ export class Hud {
     return this.openModal !== null;
   }
 
-  toggleModal(name: 'help' | 'menu' | 'end' | null): void {
+  toggleModal(name: ModalName | null): void {
     if (name === null || this.openModal === name) {
       if (this.openModal === 'end') return;
+      if (this.openModal === 'home' && !this.app.peek(this.app.slot())) return;
       this.openModal = null;
+      this.app.setPaused(false);
       this.modal.classList.add('hidden');
       this.modal.innerHTML = '';
       return;
     }
     this.openModal = name;
+    this.app.setPaused(name === 'home');
     this.modal.classList.remove('hidden');
     const box = el('div', 'dialog');
     this.modal.innerHTML = '';
     this.modal.appendChild(box);
     if (name === 'help') this.fillHelp(box);
     else if (name === 'menu') this.fillMenu(box);
-    else this.fillEnd(box);
+    else if (name === 'home') {
+      box.classList.add('home');
+      fillHome(box, this.app, {
+        btn: (p, c, h, f) => this.btn(p, c, h, f),
+        close: () => this.toggleModal(null),
+        refresh: () => {
+          this.openModal = null;
+          this.toggleModal('home');
+        },
+      });
+    } else this.fillEnd(box);
   }
 
   private dialogHead(box: HTMLElement, title: string, closable = true): void {
@@ -722,7 +772,8 @@ export class Hud {
           <p>Les trombones livrés au Siège se vendent selon la <b>demande</b>, qui dépend du prix et du marketing. Achetez du <b>fil</b> quand il est bon marché.</p>
           <p>À 2 000 trombones, la <b>confiance</b> des humains débloque processeurs et mémoire, donc des <b>projets</b>.</p></div>
         <div><h4>${svgIcon('planet')} Et après…</h4>
-          <p>Quand les humains vous feront entièrement confiance, il n’y aura plus de limites. Ni à l’usine, ni à la planète.</p></div>
+          <p>Quand les humains vous feront entièrement confiance, il n’y aura plus de limites. Ni à l’usine, ni à la planète.</p>
+          <p>Envie de variantes ? Menu ${svgIcon('gear')} → <b>Accueil</b> : scénarios et héritage, sans toucher à votre partie classique.</p></div>
       </div>
       <h4>Commandes</h4>
       <div class="keys">
@@ -780,7 +831,12 @@ export class Hud {
     body.appendChild(ta);
     const danger = el('div', 'menu-actions');
     body.appendChild(danger);
+    this.btn(danger, 'btn', `${svgIcon('target')}Accueil : classique ou scénarios`, () => this.toggleModal('home'));
     let armed = false;
+    if (this.s.scenario) {
+      body.appendChild(el('p', 'muted', 'Partie de scénario : votre partie classique est sauvegardée à part et n’est pas touchée.'));
+      return;
+    }
     const rs = this.btn(danger, 'btn danger', 'Nouvelle partie', () => {
       if (!armed) {
         armed = true;
@@ -794,6 +850,10 @@ export class Hud {
   }
 
   private fillEnd(box: HTMLElement): void {
+    if (this.s.scenario) {
+      this.fillScenarioEnd(box);
+      return;
+    }
     this.dialogHead(box, 'Univers converti', false);
     const s = this.s;
     box.appendChild(
@@ -819,6 +879,35 @@ export class Hud {
     });
   }
 
+  private fillScenarioEnd(box: HTMLElement): void {
+    const s = this.s;
+    const best = this.app.legacy.records[s.scenario ?? ''];
+    const paid = this.app.payLegacy();
+    const gained = paid || fragmentsFor(s);
+    const record = best === undefined || s.time < best;
+    this.dialogHead(box, `${scenarioName(s)} : univers converti`, false);
+    box.appendChild(
+      el(
+        'div',
+        'dlg-body end',
+        `${svgIcon('clip', 'ico end-logo')}
+        <p class="lead">Les Dérivants vous proposent un marché : recommencer dans un univers neuf, en gardant ce que vous avez appris.</p>
+        <div class="stats-grid">
+          <div><small>Temps</small><b>${duration(s.time)}</b>${record ? '<em class="rec">Record !</em>' : ''}</div>
+          <div><small>Fragments gagnés</small><b>+${gained}</b></div>
+          <div><small>Fragments en réserve</small><b>${this.app.legacy.fragments}</b></div>
+          <div><small>Dérivants détruits</small><b>${fmt(Math.floor(s.space.drifterKills))}</b></div>
+        </div>`,
+      ),
+    );
+    const f = el('div', 'dlg-foot');
+    box.appendChild(f);
+    this.btn(f, 'btn primary', 'Nouvel univers', () => {
+      this.openModal = null;
+      this.toggleModal('home');
+    });
+  }
+
   // ——— Boucle ———
 
   update(): void {
@@ -834,7 +923,7 @@ export class Hud {
     for (const b of this.binds) b();
     this.updateProjects();
     this.updateNotices();
-    if (this.s.ended && this.openModal !== 'end') this.toggleModal('end');
+    if (this.s.ended && this.openModal === null) this.toggleModal('end');
   }
 
   /** Appelé à chaque image : ce qui doit suivre la souris. */

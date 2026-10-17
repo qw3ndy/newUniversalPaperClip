@@ -1,4 +1,5 @@
 import { BUILDINGS, MAP_H, MAP_W, rotCW } from '../game/constants';
+import { daylight } from '../game/rules';
 import type { BuildingType, Dir, Entity, ItemKind, MachineStatus } from '../game/types';
 import type { World } from '../game/world';
 import type { Camera } from './camera';
@@ -282,6 +283,12 @@ export class Renderer {
 
     // Effets flottants (repère écran)
     this.screenTransform();
+    const light = daylight(s);
+    if (light < 1) {
+      // Nuit polaire (scénario) : la carte s'assombrit avec le soleil.
+      ctx.fillStyle = `rgba(4,8,26,${0.6 * (1 - light)})`;
+      ctx.fillRect(0, 0, cam.w, cam.h);
+    }
     ctx.textAlign = 'center';
     ctx.font = '600 13px Inter, system-ui, sans-serif';
     for (const f of w.fx) {

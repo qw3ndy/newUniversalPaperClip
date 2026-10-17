@@ -5,7 +5,7 @@ import type { GameState } from '../game/types';
 export interface Objective {
   phase: number;
   title: string;
-  hint: string;
+  hint: string | ((s: GameState) => string);
   done: (s: GameState) => boolean;
   progress?: (s: GameState) => string;
 }
@@ -62,9 +62,9 @@ export const OBJECTIVES: Objective[] = [
   {
     phase: 1,
     title: 'Passez à la vitesse supérieure',
-    hint: 'Atteignez 20 plieuses pour accéder au projet « Méga-plieuses ».',
+    hint: (s) => `Atteignez ${s.rules?.megaReq ?? 20} plieuses pour accéder au projet « Méga-plieuses ».`,
     done: (s) => !!s.flags.mega,
-    progress: (s) => `${c(s, 'clipper')} / 20 plieuses`,
+    progress: (s) => `${c(s, 'clipper')} / ${s.rules?.megaReq ?? 20} plieuses`,
   },
   {
     phase: 1,

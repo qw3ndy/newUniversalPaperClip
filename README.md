@@ -27,6 +27,21 @@ push sur `main` : il suffit d'activer *Settings → Pages → Source : GitHub Ac
 
 Durée indicative : ~1 h pour la phase 1, ~30 min pour la Terre, ~10 min pour l'univers.
 
+## Scénarios et héritage
+
+L'écran d'accueil (menu ⚙ → *Accueil*) propose deux modes, sauvegardés séparément :
+
+- **Partie classique** : le jeu ci-dessus, sans aucune règle modifiée. Elle garde son emplacement de sauvegarde
+  d'origine ; les scénarios n'y touchent jamais.
+- **Scénarios** : *Standard*, *Pénurie* (fil hors de prix), *Garage* (usine de 12×8), *Krach* (demande en dents de
+  scie) et *Nuit polaire* (soleil intermittent en phase 2). Chacun est chronométré, avec son record.
+
+Terminer un scénario rapporte des **fragments**, à dépenser en bonus permanents pour les scénarios suivants
+(capital de départ, fil moins cher, terrain, confiance, créativité, vitesse des plieuses).
+
+`tests/scenarios.test.ts` rejoue des sauvegardes produites par la v1.0 et vérifie qu'elles évoluent exactement
+comme avec la v1.0.
+
 ## Commandes
 
 | Touche | Action |
