@@ -4,6 +4,7 @@ import { buyWire, changePrice, makeClipByHand } from '../src/game/economy';
 import { Game } from '../src/game/game';
 import { buyProject, PROJECTS } from '../src/game/projects';
 import { hydrate, serialize } from '../src/game/save';
+import { megaRate } from '../src/game/rules';
 import { newGame } from '../src/game/state';
 
 function run(g: Game, seconds: number) {
@@ -107,7 +108,7 @@ describe('usine', () => {
         g.s.mods.feederMult = 3;
         g.world.place('feeder', HQ_X - 3, HQ_Y, 1);
         g.world.place('megaclipper', HQ_X - 2, HQ_Y, 1);
-        return 50;
+        return megaRate(g.s);
       }),
     ).toBeGreaterThan(0.99);
   });
@@ -118,6 +119,15 @@ describe('usine', () => {
     const c = g.world.place('clipper', HQ_X - 1, HQ_Y, 1)!;
     run(g, 10);
     expect(g.world.realRate.get(c.id)).toBeCloseTo(1, 1);
+  });
+
+  it('la méga-plieuse vaut 20 plieuses, et jamais moins de 50/s', () => {
+    const s = newGame(1);
+    expect(megaRate(s)).toBe(50);
+    s.mods.clipperBoost = 7.5;
+    expect(megaRate(s)).toBe(150);
+    s.mods.megaBoost = 2.75;
+    expect(megaRate(s)).toBeCloseTo(412.5);
   });
 
   it('suppression = remboursement exact', () => {

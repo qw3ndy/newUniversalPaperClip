@@ -117,7 +117,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     type: 'megaclipper',
     name: 'Méga-plieuse',
     short: 'Méga',
-    desc: 'Une plieuse 2×2, cinquante fois plus rapide.',
+    desc: 'Une plieuse 2×2 qui vaut vingt plieuses, améliorations des plieuses comprises.',
     size: 2,
     phases: [1, 2, 3],
     power: 0,
