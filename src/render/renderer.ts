@@ -366,8 +366,17 @@ export class Renderer {
   }
 
   drawItem(kind: ItemKind, qty: number, x: number, y: number): void {
+    // Un objet sur un tapis est un lot : plus il contient d'unités, plus il est gros
+    // et plus la pile est haute, pour qu'un lot de 25 ne ressemble pas à un lot de 1.
+    const decades = Math.log10(Math.max(1, qty));
+    const layers = Math.min(3, Math.floor(decades));
+    for (let k = layers; k >= 1; k--) this.drawLot(kind, x + 0.05 * k, y - 0.05 * k, 0.11 + Math.min(0.09, 0.03 * decades), true);
+    this.drawLot(kind, x, y, 0.11 + Math.min(0.09, 0.03 * decades), false);
+  }
+
+  private drawLot(kind: ItemKind, x: number, y: number, r: number, under: boolean): void {
     const ctx = this.ctx;
-    const r = 0.12 + Math.min(0.07, 0.016 * Math.log10(Math.max(1, qty)));
+    if (under) ctx.globalAlpha *= 0.7;
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
     ctx.arc(x, y + 0.04, r, 0, Math.PI * 2);
@@ -408,6 +417,7 @@ export class Renderer {
       ctx.fill();
       ctx.stroke();
     }
+    if (under) ctx.globalAlpha /= 0.7;
   }
 
   private drawMachine(e: Entity, t: number, now: number, ghost = false): void {

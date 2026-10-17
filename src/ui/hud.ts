@@ -649,6 +649,8 @@ export class Hud {
     }
     const need = this.inputNeed(e);
     if (need) lines.push(`<div>Consomme jusqu’à ${need}</div>`);
+    if (e.type === 'megaclipper' || e.type === 'clipfactory')
+      lines.push(`<div>≈ ${fmt(rate / clipperRate(s), 1)} plieuses actuelles · lots d’environ ${fmt(Math.max(1, rate * 0.4), 0)} trombones</div>`);
     if (e.type === 'clipper' || e.type === 'megaclipper' || e.type === 'clipfactory' || e.type === 'wiremill') {
       const cap = bufferCap(rate);
       lines.push(`<div>Entrée : ${fmt(e.inBuf)} / ${fmt(cap)} · Sortie : ${fmt(e.outBuf)}</div>`);
