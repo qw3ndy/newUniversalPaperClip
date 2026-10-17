@@ -126,7 +126,7 @@ export class World {
 
   buildArea(): Rect {
     if (this.s.phase > 1) return { x0: 0, y0: 0, x1: MAP_W, y1: MAP_H };
-    const ex = EXPANSIONS[Math.min(this.s.expansions, EXPANSIONS.length - 1)];
+    const ex = this.s.rules?.area ?? EXPANSIONS[Math.min(this.s.expansions, EXPANSIONS.length - 1)];
     const x0 = HQ_X + 1 - Math.floor(ex.w / 2);
     const y0 = HQ_Y + 1 - Math.floor(ex.h / 2);
     return { x0, y0, x1: x0 + ex.w, y1: y0 + ex.h };

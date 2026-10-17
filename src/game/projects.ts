@@ -143,24 +143,25 @@ export const PROJECTS: ProjectDef[] = [
     title: 'Extension d’usine I',
     desc: `Agrandit la zone constructible à ${EXPANSIONS[1].w}×${EXPANSIONS[1].h}.`,
     cost: { funds: 400 },
-    req: (s) => p1(s) && count(s, 'clipper') >= 4,
-    effect: (w) => (w.s.expansions = 1),
+    // `noExpand` et `expansions` ne bougent qu'en scénario : sans effet en partie classique.
+    req: (s) => p1(s) && !s.rules?.noExpand && s.expansions < 1 && count(s, 'clipper') >= 4,
+    effect: (w) => (w.s.expansions = Math.max(w.s.expansions, 1)),
   },
   {
     id: 'expand2',
     title: 'Extension d’usine II',
     desc: `Agrandit la zone constructible à ${EXPANSIONS[2].w}×${EXPANSIONS[2].h}.`,
     cost: { funds: 4000 },
-    req: (s) => done(s, 'expand1') && count(s, 'clipper') >= 15,
-    effect: (w) => (w.s.expansions = 2),
+    req: (s) => (done(s, 'expand1') || s.expansions >= 1) && !s.rules?.noExpand && s.expansions < 2 && count(s, 'clipper') >= 15,
+    effect: (w) => (w.s.expansions = Math.max(w.s.expansions, 2)),
   },
   {
     id: 'expand3',
     title: 'Extension d’usine III',
     desc: `Agrandit la zone constructible à ${EXPANSIONS[3].w}×${EXPANSIONS[3].h}.`,
     cost: { funds: 30000 },
-    req: (s) => done(s, 'expand2') && done(s, 'mega'),
-    effect: (w) => (w.s.expansions = 3),
+    req: (s) => (done(s, 'expand2') || s.expansions >= 2) && !s.rules?.noExpand && s.expansions < 3 && done(s, 'mega'),
+    effect: (w) => (w.s.expansions = Math.max(w.s.expansions, 3)),
   },
   {
     id: 'hadwigerDiagrams',
@@ -175,7 +176,7 @@ export const PROJECTS: ProjectDef[] = [
     title: 'Méga-plieuses',
     desc: 'Débloque la méga-plieuse : 2×2, cinquante fois plus rapide.',
     cost: { ops: 8000 },
-    req: (s) => p1(s) && count(s, 'clipper') >= 20,
+    req: (s) => p1(s) && count(s, 'clipper') >= (s.rules?.megaReq ?? 20),
     effect: (w) => (w.s.flags.mega = true),
     msg: 'Méga-plieuses disponibles dans la barre de construction.',
   },
@@ -475,6 +476,36 @@ export const PROJECTS: ProjectDef[] = [
       w.s.space.probes = 0;
       w.notify('Phase 3 : l’univers. Lancez vos premières sondes depuis l’onglet Univers.', 'phase');
     },
+  },
+
+  // ——— Scénarios (n'apparaissent jamais en partie classique) ———
+  {
+    id: 'recycle',
+    title: 'Recyclage du fil',
+    desc: 'Récupérer les chutes : le prix du fil baisse de 40 %, plancher compris.',
+    cost: { ops: 2000 },
+    req: (s) => p1(s) && s.computing && s.rules?.wireFloor !== undefined,
+    effect: (w) => {
+      const s = w.s;
+      s.wireBasePrice *= 0.6;
+      if (s.rules?.wireFloor !== undefined) s.rules.wireFloor *= 0.6;
+    },
+  },
+  {
+    id: 'hedge',
+    title: 'Couverture financière',
+    desc: 'Les krachs ne divisent plus la demande que par 1,7 au lieu de 4.',
+    cost: { ops: 3000 },
+    req: (s) => p1(s) && s.computing && !!s.rules?.marketCycle,
+    effect: (w) => (w.s.flags.hedge = true),
+  },
+  {
+    id: 'batteries',
+    title: 'Stockage d’énergie',
+    desc: 'Des batteries géantes : la nuit, les fermes solaires gardent 60 % de leur production.',
+    cost: { ops: 12000 },
+    req: (s) => p2(s) && !!s.rules?.polarNight,
+    effect: (w) => (w.s.flags.batteries = true),
   },
 
   // ——— Phase 3 : espace ———

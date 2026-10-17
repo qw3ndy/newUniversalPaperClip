@@ -18,7 +18,8 @@ export const totalProcessors = (s: GameState) => s.processors + s.bonusProcessor
 export const totalMemory = (s: GameState) => s.memory + s.bonusMemory;
 export const maxOps = (s: GameState) => totalMemory(s) * 1000;
 export const opsRate = (s: GameState) => totalProcessors(s) * 20;
-export const creativityRate = (s: GameState) => 0.4 + 0.35 * Math.pow(totalProcessors(s), 1.1);
+export const creativityRate = (s: GameState) =>
+  (0.4 + 0.35 * Math.pow(totalProcessors(s), 1.1)) * (s.mods.creativityMult ?? 1);
 export const trustAvailable = (s: GameState) => s.trust - s.processors - s.memory;
 
 /** Débit nominal (unités / s) d'une machine, hors énergie. */
@@ -42,7 +43,7 @@ export function machineRate(s: GameState, e: Entity): number {
 }
 
 export function demandOf(s: GameState): number {
-  return (0.8 / s.margin) * Math.pow(1.1, s.marketingLvl - 1) * s.marketingEffect;
+  return (0.8 / s.margin) * Math.pow(1.1, s.marketingLvl - 1) * s.marketingEffect * marketFactor(s);
 }
 
 /** Ventes attendues par seconde (formule de l'original, lissée). */
@@ -96,4 +97,30 @@ export function isUnlocked(s: GameState, type: BuildingType): boolean {
   if (type === 'megaclipper') return !!s.flags.mega;
   if (type === 'compute') return !!s.flags.compute;
   return true;
+}
+
+// ——— Règles de scénario (valent 1 / neutres en partie classique) ———
+
+const MARKET_PERIOD = 240;
+
+/** Cycle du scénario « Krach » : stable, puis krach, puis euphorie. */
+export function marketState(s: GameState): { factor: number; label: string; next: number } {
+  if (!s.rules?.marketCycle) return { factor: 1, label: 'Stable', next: 0 };
+  const t = s.time % MARKET_PERIOD;
+  if (t < 150) return { factor: 1, label: 'Stable', next: 150 - t };
+  if (t < 200) return { factor: s.flags.hedge ? 0.6 : 0.25, label: 'Krach !', next: 200 - t };
+  return { factor: 2, label: 'Euphorie', next: MARKET_PERIOD - t };
+}
+
+export function marketFactor(s: GameState): number {
+  return s.rules?.marketCycle ? marketState(s).factor : 1;
+}
+
+const DAY_PERIOD = 180;
+
+/** Ensoleillement du scénario « Nuit polaire » (phase 2 et suivantes). */
+export function daylight(s: GameState): number {
+  if (!s.rules?.polarNight || s.phase < 2) return 1;
+  const d = Math.min(1, Math.max(0, 0.5 + 0.7 * Math.sin((2 * Math.PI * s.time) / DAY_PERIOD)));
+  return Math.max(s.flags.batteries ? 0.6 : 0.05, d);
 }

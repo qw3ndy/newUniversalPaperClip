@@ -1,5 +1,5 @@
 import { BELT_SPACING, BUFFER_SECONDS, BUILDINGS, DX, DY, EMIT_INTERVAL, opp } from './constants';
-import { beltSpeed, feederRate, machineRate, powerUse, solarOutput } from './rules';
+import { beltSpeed, daylight, feederRate, machineRate, powerUse, solarOutput } from './rules';
 import type { BeltItem, Dir, Entity, ItemKind } from './types';
 import type { World } from './world';
 
@@ -210,7 +210,7 @@ export function updatePower(w: World): void {
   let use = 0;
   let computes = 0;
   for (const e of s.entities) {
-    if (e.type === 'solar') prod += solarOutput(s);
+    if (e.type === 'solar') prod += solarOutput(s) * daylight(s);
     else if (BUILDINGS[e.type].power > 0) {
       use += powerUse(s, e.type);
       if (e.type === 'compute') computes++;
