@@ -121,6 +121,23 @@ describe('usine', () => {
     expect(g.world.realRate.get(c.id)).toBeCloseTo(1, 1);
   });
 
+  it('un distributeur livre exactement son débit annoncé', () => {
+    const g = new Game(newGame(2));
+    g.s.funds = 100;
+    g.world.remove(g.world.at(HQ_X - 2, HQ_Y)!);
+    const f = g.world.place('feeder', HQ_X - 1, HQ_Y, 1)!; // vide son fil directement dans le Siège
+    run(g, 5);
+    let delivered = 0;
+    const orig = g.world.recordMade.bind(g.world);
+    g.world.recordMade = (e, q) => {
+      if (e === f) delivered += q;
+      orig(e, q);
+    };
+    run(g, 60);
+    expect(delivered / 60).toBeGreaterThan(19.8);
+    expect(delivered / 60).toBeLessThanOrEqual(20.2);
+  });
+
   it('la méga-plieuse vaut 20 plieuses, et jamais moins de 50/s', () => {
     const s = newGame(1);
     expect(megaRate(s)).toBe(50);

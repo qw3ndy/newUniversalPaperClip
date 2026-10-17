@@ -153,7 +153,9 @@ function stepFeeder(w: World, e: Entity, dt: number): void {
       const q = Math.min(Math.floor(feederRate(s) * EMIT_INTERVAL), Math.floor(s.wire));
       s.wire -= q;
       e.out = { kind: 'wire', qty: q, pos: 0 };
-      e.timer = EMIT_INTERVAL;
+      // On reporte le retard accumulé (au plus un intervalle) : sinon l'arrondi au tick
+      // fait livrer 19,2 pouces/s au lieu de 20, sans jamais créer de rafale.
+      e.timer = Math.max(e.timer, -EMIT_INTERVAL) + EMIT_INTERVAL;
       e.pulse = s.time;
       w.recordMade(e, q);
     } else {
